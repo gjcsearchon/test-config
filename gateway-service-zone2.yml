@@ -1,0 +1,234 @@
+#security.require-ssl: true #确定请求也需要https
+server:
+  port: 8781
+#  port: 8443
+#  ssl:  #配置https使用，如果https配置到ngnix则，这里可以不用配置，直接走http了！
+#    key-alias: gateway-service
+#    enabled: true
+#    key-password: key123456 #springboot2.0不需要配置这个 T-T
+#    key-store: classpath:ca/gateway-service.keystore #在resources文件夹下时要加/，如果在源码目录下则不要/
+#    key-store-type: JKS  #PKCS12,文件名为.keystore也必须设为JKS?
+#    key-store-provider: SUN
+#    key-store-password: store123456  
+#Hystrix设置(例如超时)可以使用全局默认值配置，也可以使用在Hystrix wiki上解释的应用程序属性按路由进行配置。 上面的示例路由设置5秒超时，将使用以下配置:        
+#Hystr ix设置(例如超时)可以使用全局默认值配置，也可以使用在Hystrix wiki上解释的应用程序属性按路由进行配置。 上面的示例路由设置5秒超时，将使用以下配置:        
+#hystrix.command.fallbackcmd.execution.isolation.thread.timeoutInMilliseconds: 5000     ## hystrix 信号量隔离，5秒后自动超时   
+hystrix:
+  command:
+    default:
+      execution:
+        isolation:
+          strategy: SEMAPHORE
+          thread.timeoutInMilliseconds: 5000     ## hystrix 信号量隔离，5秒后自动超时
+  shareSecurityContext: true   
+ 
+#spring.webflux.static-path-pattern: /resources/ **  #指定静态资源路径,显示swagger2静态而面必须设置，否则不显示
+#spring.webflux.static-path-pattern: /** #
+#spring.resources.static-locations: classpath:/META-INF/resources/,classpath:/resources/,classpath:/static/,classpath:/public/
+     
+spring:
+  application:
+    name: gateway-service
+#Redis存储配置
+  redis:
+    database: 0  # Redis数据库索引（默认为0）
+    host: 127.0.0.1  # Redis服务器地址
+    port: 6379 # Redis服务器连接端口
+    password: 123456  # Redis服务器连接密码（默认为空）
+    timeout: 5000  # 连接超时时间（毫秒）100
+    jedis:
+      pool:
+        max-active: 8 # 连接池最大连接数（使用负值表示没有限制）
+        max-wait: -1  # 连接池最大阻塞等待时间（使用负值表示没有限制）
+        max-idle: 8 # 连接池中的最大空闲连接
+        min-idle: 0  # 连接池中的最小空闲连接
+  cache.type: redis
+#cloud-gateway配置          
+  cloud:   
+    gateway:
+      discovery.locator.enabled: true #启用了自动根据服务ID建立路由 ，若不想自动建立路由，可以将此项目注释掉
+      discovery.locator.lowerCaseServiceId: true #使用小写方式的serviceid，否则必须使用大写的  （若不想自动建立路由，可以将）
+      default-filters:  
+        - name: RequestRateLimiter  #令牌桶算法的限流filter,默认控制，所有访问都要限流，filter名称必须是RequestRateLimiter
+          args:
+            redis-rate-limiter.replenishRate: 10 #允许远程ip同一个地址每秒处理多少个请求，一秒内请求数超过时，http code 为 429 （Too Many Requests 太多请求）
+            redis-rate-limiter.burstCapacity: 10 #令牌桶的容量，允许在一秒钟内完成的最大请求数           
+            key-resolver: "#{@remoteAddrKeyResolver}"  #在配置中使用了两个SpEL表达式，分别定义限流键和限流的配置。因此，我们需要在实现中增加如下的配置：
+#            rate-limiter: "#{@customRateLimiter}" # token 
+        - name: Hystrix
+          args:
+            name: fallbackcmd
+            fallbackUri: forward:/fallback                    
+#      default-filters:
+#        - StripPrefix=2  #对于每个路由都要套用的过滤器，可以使用default-filters来设置，就以上设定来说，可以请求       
+      routes:   
+#        - id: inventory-service
+#          predicates:
+#          - Path=/inventory-service/**
+#          uri: lb://inventory-service
+#          filters:
+#            - GwSwaggerHeaderFilter #该filete已被spring官方修正，不用
+#            - StripPrefix=1
+#        - id: baidu #每个路由设定会有个route_id作为识别，没有指定时会自动使用uuid
+#          uri: http://www.baidu.com/
+#          predicates:
+#          - Path=/baidu/**  #Path内建的断言器工厂Bean
+#        - id: acct
+#          predicates:
+#            - Path=/acct/**
+#          filters:
+#            - StripPrefix=1  #设定值为1表示将路由中的第一个层去除，变为lb://acctsvi/**
+#          uri: lb://acctsvi        
+#        - id: 163
+#          uri: http://www.163.com
+#          predicates:
+#          - After=2020-01-20T17:42:47.789-07:00[America/Denver]  #这个路由匹配了时区为[America/Denver]，2017年1月20号17:42:47之后的请求。如果当前请求的时间匹配，则会跳转到uri的地址。
+#        - id: before_route
+#          uri: http://www.sina.com.cn
+#          predicates:
+#          - Before=2016-01-20T17:42:47.789-07:00[America/Denver]  
+#        - id: between_route
+#          uri: http://example.org
+#          predicates: 
+#          - Between=2017-01-20T17:42:47.789-07:00[America/Denver], 2019-01-21T17:42:47.789-07:00[America/Denver]
+#          - Weight=auth-service, 5   #本路由占5%权重（auth-service组)
+  #        Cookie Route Predicate Factory 接收2个参数, cookie名称和一个正则表达式。这个谓词匹配具有给定名称的cookie，而值匹配正则表达式。
+#        - id: cookie_route
+#          uri: http://example.org
+#          predicates:
+#          - Cookie=chocolate, ch.p  #前面的参数为cookie名称  cookie名为chocolate，其值与ch.p正则表达式匹配的请求。
+  #        Header Route Predicate Factory接收2个参数，一个header中的名称和一个正则表达式。这个谓词与具有给定名称的header，而值匹配正则表达式。
+#        - id: header_route
+#          uri: http://example.org
+#          predicates:
+#          - Header=X-Request-Id, \d+ #名为X-Request-Id的header，其值与\d+正则表达式(值为一个或多个数字)匹配，则此路由将匹配。
+#  #        Host Route Predicate Factory接收一个参数，主机名称的模板。这个模板是一个ant分隔的模板，用.号作为分隔符。此谓词匹配主机头的模板。
+#        - id: host_route
+#          uri: http://example.org
+#          predicates:
+#          - Host=**.somehost.org #请求有一个主机头，其值为www.somehost.org或beta.somehost.org，则此路由将匹配。
+  #Me   d Route Predicate Factory接收一个参数，HTTP请求的方法。
+#        - id: method_route
+#          uri: http://example.org
+#          predicates:
+#          - Method=GET  #是一个GET请求，这个路由将被匹配。
+  # P    Route Predicate Factory接收一个参数，一个Spring PathMatcher模板。      
+#        - id: host_route
+#          uri: http://example.org
+#          predicates:
+#          - Path=/foo/{segment}    #请求路径符合要求，则此路由将匹配，例如：/foo/1 或者 /foo/bar。   
+  #    词提取URI模板变量作为名称和值的映射(就像上面例子中定义的segment)，并将其放入ServerWebExchange.getAttributes()中，
+  #并   thRoutePredicate.URL_PREDICATE_VARS_ATTR中定义一个key。       
+  #Qu    Route Predicate Factory 接收2个参数: 一个必须的参数和一个可选的表达式。
+#        - id: query_route
+#          uri: http://example.org
+#          predicates:
+#          - Query=foo, ba.  #如果请求包含baz查询参数，则此路由将匹配。？之后的查询参数， 请求包含一个foo查询参数，其值与ba.匹配，则其路由将匹配。例如foo=bar和foo=baz。
+#  #Re   eAddr Route Predicate Factory接受cidr符号(IPv4或IPv6)字符串的列表(最小大小为1)，例如192.168.0.1/16(其中192.168.0.1是IP地址，16是子网掩码)。
+#        - id: remoteaddr_route
+#          uri: http://example.org
+#          predicates:
+#          - RemoteAddr=192.168.1.1/24  #如果请求的远程地址是192.168.1.10，则此路由将匹配。
+  #默   情况下，RemoteAddr Route Predicate Factory使用来自传入请求的远程地址。如果Spring Cloud网关位于代理层后面，
+  #这   能与实际客户端IP地址不匹配 ，       Spring Cloud Gateway提供了非默认远程地址解析器XForwardedRemoteAddressResolver，
+  #它   于x - forward - for报头，XForwardedRemoteAddressResolver有两个静态构造函数方法，采用不同的安全方法:
+  #XF   ardedRemoteAddressResolver::trustAll 返回一个RemoteAddressResolver，它总是取x - forward - for报头中找到的第一个IP地址。
+  #这   方法很容易被欺骗，因为恶意客户端可以为x - forward设置一个初始值——解析器会接受这个初始值。
+  #XF   ardedRemoteAddressResolver::maxTrustedIndex 获取与Spring Cloud Gateway前面运行的可信基础结构数量相关的索引。
+  #例   ring Cloud Gateway，只能通过HAProxy访问，那么应该使用1的值。如果在访问Spring Cloud Gateway之前需要两跳可信基础设施，那么应该使用值2。
+  #给   以下标题值:X-Forwarded-For: 0.0.0.1, 0.0.0.2, 0.0.0.3
+  #      AddRequestHeader GatewayFilter Factory接收一个名称和值参数。
+#        - id: add_request_header_route
+#          uri: http://example.org
+#          predicates:
+#          - Path=/example/**
+#          filters:
+#          - AddRequestHeader=X-Request-Foo, Bar  #在匹配的情况下，会为下游请求添加X-Request-Foo:Bar的header头。AddRequestHeader GatewayFilter Factory接收一个名称和值参数。
+  #Ad   questParameter GatewayFilter Factory接收一个名称和值参数。
+#        - id: add_request_parameter_route
+#          uri: http://example.org
+#          predicates:
+#          - Path=/AddRequestParameter/**          
+#          filters:
+#          - AddRequestParameter=foo, bar #在匹配的情况下，会为下游请求添加foo=bar的查询字符串。
+  #Ad   sponseHeader GatewayFilter Factory接收一个名称和值参数。
+#        - id: add_request_header_route
+#          uri: http://example.org
+#          predicates:
+#          - Path=/AddResponseHeader/**        
+#          filters:
+#          - AddResponseHeader=X-Response-Foo, Bar #在匹配的情况下，会为下游响应添加X-Response-Foo:Bar的header头。
+  #Hy   ix是Netflix的一个库，实现了断路器模式。Hystrix网关过滤器允许你引入断路器到你的网关路由，保护您的服务免于级联故障，并允许您在发生下游故障时提供备用响应
+  #要   项目中启用Hystrix网关过滤器，请添加Spring Cloud Netflix的Spring - Cloud -starter- Netflix - Hystrix的依赖。
+  #Hy   ix GatewayFilter Factory需要一个名称参数，即HystrixCommand的名称。      
+#        - id: hystrix_route
+#          uri: http://example.org
+#          filters:
+  #        - Hystrix=myCommandName  #这将剩余的过滤器封装在命令名为myCommandName的HystrixCommand中。Hystrix过滤器还可以接受一个可选的fallbackUri参数。目前，只支持forward:schemed uri的方式。如果调用fallback，请求将被转发到匹配URI的controller。
+#        - id: hystrix_route
+#          uri: lb://backing-service:8088  #lb前缀演示了(可选的)Spring Cloud Netflix Ribbon负载平衡
+#          predicates:
+#          - Path=/consumingserviceendpoint
+#          filters:
+#            - name: Hystrix
+#              args:
+#                name: fallbackcmd  #这个名字是Controller的名字？将触发Hystrix fallback时将请求转发到/incaseoffailureusethis这个URI
+#                fallbackUri: forward:/fllback
+#            - RewritePath=/consumingserviceendpoint, /backingserviceendpoint
+#  #Pr   xPath GatewayFilter Factory接收单一的参数：
+#        - id: prefixpath_route
+#          uri: http://example.org
+#          predicates:
+#          - Path=/PrefixPath/**           
+#          filters:
+#          - PrefixPath=/mypath #所有匹配请求的路径加上/mypath前缀。因此，对/hello的请求将被发送到/mypath/hello。
+#  boo t:  #配置admin server的信息，使用eureka后，不用再配置这个bootserver信息
+#    a dmin:
+#       client:
+#         url: http://localhost:8769  #指定spring boot admin server地址,使用注册中心时，不用再指定admin server地址
+       
+        
+#开启端点         
+management:
+  endpoints:
+    web:
+      exposure:  
+        include: '*'   #gateway  # 开放actuator/gateway/routes端口      
+  endpoint:
+    health:
+      show-details: ALWAYS           
+#  security:
+#    enabled: true  #定义必须验证登录，已过时
+
+eureka:
+  instance:
+    leaseRenewalIntervalInSeconds: 10
+    health-check-url-path: /actuator/health
+    prefer-ip-address: true
+    ip-address: 127.0.0.1
+    metadataMap.zone: zone2
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    region: region-east
+    service-url:
+      zone1: http://localhost:8761/eureka/,http://localhost:8762/eureka/
+      zone2: http://localhost:8763/eureka/,http://localhost:8764/eureka/
+    availability-zones:
+      region-east: zone1,zone2    
+#  client:
+#    registryFetchIntervalSeconds: 10  
+#    service-url:  #指定注册中心的地址，以便使用服务发现功能
+#      defaultZone: '@eureka.server.addr@'  #获得pom中定义的变量，必须定义resources plugin才能使用
+
+# 配置输出日志          
+logging:
+  level:
+    org.springframework.cloud.gateway: TRACE
+    org.springframework.http.server.reactive: DEBUG
+    org.springframework.web.reactive: DEBUG
+    reactor.ipc.netty: DEBUG
+
+
+#链接：https://www.jianshu.com/p/44a0d6adcdea
+      
