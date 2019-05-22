@@ -24,3 +24,9 @@ eureka:
   server:
       waitTimeInMsWhenSyncEmpty: 0
       enableSelfPreservation: false
+#management.endpoints.web.base-path=/monitor 代表启用单独的url地址来监控 Spring Boot 应用，为了安全一般都启用独立的端口来访问后端的监控信息
+management.endpoint.shutdown.enabled: true #启用接口关闭 Spring Boot
+info.app.name: eureka-server
+info.app.version: 1.0.0
+info.app.test: test
+  
