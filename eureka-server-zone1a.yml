@@ -38,4 +38,5 @@ eureka:
 management.endpoint.shutdown.enabled: true #启用接口关闭 Spring Boot
 info.app.name: eureka-server
 info.app.version: 1.0.0
-info.app.test: test      
+info.app.test: test     
+info.app.testadd: testadd    

@@ -34,3 +34,7 @@ eureka:
   server:
       waitTimeInMsWhenSyncEmpty: 0
       enableSelfPreservation: false
+info.app.name: eureka-server
+info.app.version: 1.0.0
+info.app.test: test     
+info.app.testadd: testadd       
