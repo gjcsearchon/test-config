@@ -19,18 +19,24 @@ spring:
         acknowledge-mode: manual       
 eureka:
   instance:
+#    hostname: eureka-server
     hostname: localhost
     preferIpAddress: true
-    metadata-map.zone: zone2
+#    status-page-url-path: /actuator/info
+#    health-check-url-path: /actuator/health    
+#    metadata-map.zone: zone1  #设置实例所属的zone，失效要应该使用：eureka.client.availabilityZones.beijing=myzone # beijing是region
   client:
     register-with-eureka: true
     fetch-registry: true
-    region: region-east
+    prefer-same-zone-eureka: true #首先使用相同区域的
+    region: region-east #所在区域
     service-url:
       zone1: http://admin:123456.@localhost:8761/eureka/,http://admin:123456.@localhost:8762/eureka/
       zone2: http://admin:123456.@localhost:8763/eureka/,http://admin:123456.@localhost:8764/eureka/
     availability-zones:
-      region-east: zone1,zone2
+      region-east: zone2,zone1  #不同的zone与顺序有关，排最前面的为所属zone
   server:
-      waitTimeInMsWhenSyncEmpty: 0
-      enableSelfPreservation: false
+    waitTimeInMsWhenSyncEmpty: 0
+    eviction-interval-timer-in-ms: 4000
+    enable-self-preservation: false
+    renewal-percent-threshold: 0.9 
